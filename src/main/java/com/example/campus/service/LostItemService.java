@@ -19,11 +19,15 @@ import java.util.Locale;
 public class LostItemService {
 
     private final LostItemRepository lostItemRepository;
+    private final FileStorageService fileStorageService;
 
-    public LostItemService(LostItemRepository lostItemRepository) {
+    public LostItemService(LostItemRepository lostItemRepository,
+                           FileStorageService fileStorageService) {
         this.lostItemRepository = lostItemRepository;
+        this.fileStorageService = fileStorageService;
     }
 
+    @Transactional(readOnly = true)
     public List<LostItemResponse> findAll(Category category) {
 
         List<LostItem> items = category == null
@@ -35,6 +39,7 @@ public class LostItemService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
     public LostItemResponse findById(Long id) {
         return LostItemResponse.from(getLostItem(id));
     }
@@ -62,11 +67,12 @@ public class LostItemService {
     @Transactional
     public void delete(Long id) {
 
-        if (!lostItemRepository.existsById(id)) {
-            return;
-        }
-
-        lostItemRepository.deleteById(id);
+        lostItemRepository.findById(id).ifPresent(lostItem -> {
+            lostItemRepository.delete(lostItem);
+            // DB 삭제가 성공한 뒤에 실제 파일을 삭제
+            lostItemRepository.flush();
+            lostItem.getAttachmentList().forEach(fileStorageService::deleteIfExists);
+        });
     }
 
     @Transactional
@@ -88,6 +94,7 @@ public class LostItemService {
         return LostItemResponse.from(lostItem);
     }
 
+    @Transactional(readOnly = true)
     public List<LostItemResponse> search(
             String keyword,
             ItemType type,

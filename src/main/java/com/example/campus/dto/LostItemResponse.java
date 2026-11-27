@@ -6,6 +6,7 @@ import com.example.campus.entity.ItemType;
 import com.example.campus.entity.LostItem;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 public record LostItemResponse(
         Long id,
@@ -17,7 +18,8 @@ public record LostItemResponse(
         String location,
         String contact,
         LocalDateTime createdAt,
-        LocalDateTime updatedAt
+        LocalDateTime updatedAt,
+        List<AttachmentResponse> attachments
 ) {
     public static LostItemResponse from(LostItem lostItem) {
         return new LostItemResponse(
@@ -30,7 +32,10 @@ public record LostItemResponse(
                 lostItem.getLocation(),
                 lostItem.getContact(),
                 lostItem.getCreatedAt(),
-                lostItem.getUpdatedAt()
+                lostItem.getUpdatedAt(),
+                lostItem.getAttachmentList().stream()
+                        .map(AttachmentResponse::from)
+                        .toList()
         );
     }
 }
