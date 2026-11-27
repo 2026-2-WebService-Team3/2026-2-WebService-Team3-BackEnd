@@ -1,14 +1,11 @@
 package com.example.campus.service;
 
-import com.example.campus.DTO.LostItemRequest;
-import com.example.campus.DTO.LostItemResponse;
-
-import com.example.campus.Entity.LostItem;
-import com.example.campus.Entity.ItemType;
-import com.example.campus.Entity.ItemStatus;
-
-import com.example.campus.Repository.LostItemRepository;
-
+import com.example.campus.dto.LostItemRequest;
+import com.example.campus.dto.LostItemResponse;
+import com.example.campus.entity.ItemStatus;
+import com.example.campus.entity.ItemType;
+import com.example.campus.entity.LostItem;
+import com.example.campus.repository.LostItemRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -18,11 +15,9 @@ import java.util.List;
 import java.util.Locale;
 
 @Service
-@Transactional(readOnly = true)
 public class LostItemService {
 
     private final LostItemRepository lostItemRepository;
-
 
     public LostItemService(LostItemRepository lostItemRepository) {
         this.lostItemRepository = lostItemRepository;
@@ -33,36 +28,21 @@ public class LostItemService {
 
         return lostItemRepository.findAll()
                 .stream()
-                .map(this::toResponse)
+                .map(LostItemResponse::from)
                 .toList();
     }
 
 
     public LostItemResponse findById(Long id) {
-
-        LostItem lostItem = getLostItem(id);
-
-        return toResponse(lostItem);
+        return LostItemResponse.from(getLostItem(id));
     }
-
 
     @Transactional
     public LostItemResponse create(LostItemRequest request) {
 
-        LostItem lostItem = new LostItem();
+        LostItem newLostItem = lostItemRepository.save(new LostItem(normalize(request)));
 
-        lostItem.setTitle(request.getTitle());
-        lostItem.setDescription(request.getDescription());
-        lostItem.setType(request.getType());
-        lostItem.setCategory(request.getCategory());
-        lostItem.setLocation(request.getLocation());
-        lostItem.setContact(request.getContact());
-
-        lostItem.setStatus(ItemStatus.UNRETURNED);
-
-        LostItem savedItem = lostItemRepository.save(lostItem);
-
-        return toResponse(savedItem);
+        return LostItemResponse.from(newLostItem);
     }
 
     @Transactional
@@ -71,26 +51,20 @@ public class LostItemService {
 
         LostItem lostItem = getLostItem(id);
 
-        lostItem.setTitle(request.getTitle());
-        lostItem.setDescription(request.getDescription());
-        lostItem.setType(request.getType());
-        lostItem.setCategory(request.getCategory());
-        lostItem.setLocation(request.getLocation());
-        lostItem.setContact(request.getContact());
+        lostItem.update(normalize(request));
+        lostItemRepository.flush();
 
-        LostItem updatedItem =
-                lostItemRepository.saveAndFlush(lostItem);
-
-        return toResponse(updatedItem);
+        return LostItemResponse.from(lostItem);
     }
-
 
     @Transactional
     public void delete(Long id) {
 
-        LostItem lostItem = getLostItem(id);
+        if (!lostItemRepository.existsById(id)) {
+            return;
+        }
 
-        lostItemRepository.delete(lostItem);
+        lostItemRepository.deleteById(id);
     }
 
     @Transactional
@@ -106,12 +80,10 @@ public class LostItemService {
             );
         }
 
-        lostItem.setStatus(ItemStatus.RETURNED);
+        lostItem.markAsReturned();
+        lostItemRepository.flush();
 
-        LostItem returnedItem =
-                lostItemRepository.saveAndFlush(lostItem);
-
-        return toResponse(returnedItem);
+        return LostItemResponse.from(lostItem);
     }
 
 
@@ -129,39 +101,26 @@ public class LostItemService {
             items = lostItemRepository
                     .findByTypeAndCategoryIgnoreCase(
                             type, category.trim());
-        }
-
-        else if (hasText(keyword)) {
+        } else if (hasText(keyword)) {
 
             items = lostItemRepository
                     .findByTitleContainingIgnoreCaseOrDescriptionContainingIgnoreCase(
                             keyword.trim(), keyword.trim());
-        }
-
-        else if (type != null) {
+        } else if (type != null) {
 
             items = lostItemRepository.findByType(type);
-        }
-
-        else if (hasText(category)) {
+        } else if (hasText(category)) {
 
             items = lostItemRepository
                     .findByCategoryIgnoreCase(category.trim());
-        }
-
-        else if (hasText(location)) {
+        } else if (hasText(location)) {
 
             items = lostItemRepository
                     .findByLocationContainingIgnoreCase(location.trim());
-        }
-
-
-        else if (status != null) {
+        } else if (status != null) {
 
             items = lostItemRepository.findByStatus(status);
-        }
-
-        else {
+        } else {
 
             items = lostItemRepository.findAll();
         }
@@ -190,25 +149,9 @@ public class LostItemService {
                         status == null
                                 || item.getStatus() == status)
 
-                .map(this::toResponse)
+                .map(LostItemResponse::from)
                 .toList();
     }
-
-
-
-    private boolean hasText(String value) {
-
-        return value != null && !value.isBlank();
-    }
-
-
-    private boolean containsIgnoreCase(
-            String text, String keyword) {
-
-        return text.toLowerCase(Locale.ROOT)
-                .contains(keyword.trim().toLowerCase(Locale.ROOT));
-    }
-
 
     // 10. 신고 존재 여부 확인
     private LostItem getLostItem(Long id) {
@@ -222,21 +165,26 @@ public class LostItemService {
                 );
     }
 
+    private boolean hasText(String value) {
+        return value != null && !value.isBlank();
+    }
 
 
-    private LostItemResponse toResponse(LostItem lostItem) {
+    private boolean containsIgnoreCase(
+            String text, String keyword) {
+        return text.toLowerCase(Locale.ROOT)
+                .contains(keyword.trim().toLowerCase(Locale.ROOT));
+    }
 
-        return new LostItemResponse(
-                lostItem.getId(),
-                lostItem.getTitle(),
-                lostItem.getDescription(),
-                lostItem.getType(),
-                lostItem.getStatus(),
-                lostItem.getCategory(),
-                lostItem.getLocation(),
-                lostItem.getContact(),
-                lostItem.getCreatedAt(),
-                lostItem.getUpdatedAt()
+    private LostItemRequest normalize(LostItemRequest request) {
+        return new LostItemRequest(
+                request.title().strip(),
+                request.description().strip(),
+                request.type(),
+                request.category().strip(),
+                request.location().strip(),
+                request.contact().strip()
         );
     }
+
 }
