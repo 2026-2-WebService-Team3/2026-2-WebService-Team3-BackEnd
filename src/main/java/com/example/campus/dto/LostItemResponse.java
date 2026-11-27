@@ -1,5 +1,6 @@
 package com.example.campus.dto;
 
+import com.example.campus.entity.Category;
 import com.example.campus.entity.ItemStatus;
 import com.example.campus.entity.ItemType;
 import com.example.campus.entity.LostItem;
@@ -12,7 +13,7 @@ public record LostItemResponse(
         String description,
         ItemType type,
         ItemStatus status,
-        String category,
+        Category category,
         String location,
         String contact,
         LocalDateTime createdAt,

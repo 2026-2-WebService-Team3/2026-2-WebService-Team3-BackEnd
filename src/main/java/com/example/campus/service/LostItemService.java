@@ -2,6 +2,7 @@ package com.example.campus.service;
 
 import com.example.campus.dto.LostItemRequest;
 import com.example.campus.dto.LostItemResponse;
+import com.example.campus.entity.Category;
 import com.example.campus.entity.ItemStatus;
 import com.example.campus.entity.ItemType;
 import com.example.campus.entity.LostItem;
@@ -23,15 +24,16 @@ public class LostItemService {
         this.lostItemRepository = lostItemRepository;
     }
 
+    public List<LostItemResponse> findAll(Category category) {
 
-    public List<LostItemResponse> findAll() {
+        List<LostItem> items = category == null
+                ? lostItemRepository.findAll()
+                : lostItemRepository.findByCategory(category);
 
-        return lostItemRepository.findAll()
-                .stream()
+        return items.stream()
                 .map(LostItemResponse::from)
                 .toList();
     }
-
 
     public LostItemResponse findById(Long id) {
         return LostItemResponse.from(getLostItem(id));
@@ -86,21 +88,20 @@ public class LostItemService {
         return LostItemResponse.from(lostItem);
     }
 
-
     public List<LostItemResponse> search(
             String keyword,
             ItemType type,
-            String category,
+            Category category,
             String location,
             ItemStatus status) {
 
         List<LostItem> items;
 
-        if (type != null && hasText(category)) {
+        if (type != null && category != null) {
 
             items = lostItemRepository
-                    .findByTypeAndCategoryIgnoreCase(
-                            type, category.trim());
+                    .findByTypeAndCategory(
+                            type, category);
         } else if (hasText(keyword)) {
 
             items = lostItemRepository
@@ -109,10 +110,9 @@ public class LostItemService {
         } else if (type != null) {
 
             items = lostItemRepository.findByType(type);
-        } else if (hasText(category)) {
+        } else if (category != null) {
 
-            items = lostItemRepository
-                    .findByCategoryIgnoreCase(category.trim());
+            items = lostItemRepository.findByCategory(category);
         } else if (hasText(location)) {
 
             items = lostItemRepository
@@ -138,8 +138,8 @@ public class LostItemService {
                                 || item.getType() == type)
 
                 .filter(item ->
-                        !hasText(category)
-                                || item.getCategory().equalsIgnoreCase(category.trim()))
+                        category == null
+                                || item.getCategory() == category)
 
                 .filter(item ->
                         !hasText(location)
@@ -169,7 +169,6 @@ public class LostItemService {
         return value != null && !value.isBlank();
     }
 
-
     private boolean containsIgnoreCase(
             String text, String keyword) {
         return text.toLowerCase(Locale.ROOT)
@@ -181,7 +180,7 @@ public class LostItemService {
                 request.title().strip(),
                 request.description().strip(),
                 request.type(),
-                request.category().strip(),
+                request.category(),
                 request.location().strip(),
                 request.contact().strip()
         );

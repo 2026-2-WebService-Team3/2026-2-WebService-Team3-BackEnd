@@ -2,6 +2,7 @@ package com.example.campus.controller;
 
 import com.example.campus.dto.LostItemRequest;
 import com.example.campus.dto.LostItemResponse;
+import com.example.campus.entity.Category;
 import com.example.campus.service.LostItemService;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
@@ -16,6 +17,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -27,10 +29,11 @@ public class LostItemController {
 
     private final LostItemService lostItemService;
 
-    @Operation(summary = "신고 목록 조회", description = "등록된 모든 분실·습득 신고를 조회합니다.")
+    @Operation(summary = "신고 목록 조회", description = "분실·습득 신고를 조회합니다. 카테고리를 지정하면 해당 카테고리만 조회합니다.")
     @GetMapping
-    public ResponseEntity<List<LostItemResponse>> findAll() {
-        return ResponseEntity.ok(lostItemService.findAll());
+    public ResponseEntity<List<LostItemResponse>> findAll(
+            @RequestParam(required = false) Category category) {
+        return ResponseEntity.ok(lostItemService.findAll(category));
     }
 
     @Operation(summary = "신고 상세 조회", description = "ID에 해당하는 신고를 조회합니다.")
